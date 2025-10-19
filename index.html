@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Calendario Amazon Flex - Lógica Corregida</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 15px; background: #f8f9fa; color: #333; }
+  h1 { text-align: center; color: #1a3d7c; margin-bottom: 10px; }
+  h2 { color: #1a3d7c; margin-top: 25px; text-align: center; }
+  .week { display: flex; flex-direction: column; align-items: center; margin-top: 5px; }
+  table { border-collapse: collapse; text-align: center; margin: auto; }
+  th, td { padding: 3px 5px; font-size: 13px; }
+  th { color: #1a3d7c; font-weight: 600; }
+  input[type=number] { width: 40px; padding: 2px; text-align: center; border: 1px solid #ccc; border-radius: 3px; }
+  .total { font-weight: bold; border-radius: 4px; padding: 1px 4px; display: inline-block; min-width: 28px; }
+  .red { background-color: #f8d7da; }
+  .green { background-color: #d4edda; }
+  @media (max-width: 768px) {
+    table { font-size: 11px; }
+    input[type=number] { width: 35px; }
+  }
+</style>
+</head>
+<body>
+<h1>Calendario de Horas - Amazon Flex</h1>
+
+<h2>Semana Actual</h2>
+<div class="week" id="week-current"></div>
+
+<h2>Semana Siguiente</h2>
+<div class="week" id="week-next"></div>
+
+<script>
+const meses = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+const dias = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+
+function makeDates(startOffset) {
+  const out = [];
+  const today = new Date();
+  const base = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(base);
+    d.setDate(base.getDate() + startOffset + i);
+    out.push(d);
+  }
+  return out;
+}
+
+function shortDate(d) {
+  const m = meses[d.getMonth()];
+  return `${m} ${d.getDate()}`;
+}
+
+function createTable(dates, containerId, startOffsetIndex) {
+  const container = document.getElementById(containerId);
+  const table = document.createElement('table');
+  table.setAttribute('aria-label', containerId);
+
+  const trHeader = document.createElement('tr');
+  const thEmpty = document.createElement('th');
+  thEmpty.textContent = '';
+  trHeader.appendChild(thEmpty);
+  dates.forEach(d => {
+    const th = document.createElement('th');
+    th.textContent = shortDate(d);
+    trHeader.appendChild(th);
+  });
+  table.appendChild(trHeader);
+
+  const trDay = document.createElement('tr');
+  const thDay = document.createElement('th');
+  thDay.textContent = 'Día';
+  trDay.appendChild(thDay);
+  dates.forEach(d => {
+    const td = document.createElement('td');
+    td.textContent = dias[d.getDay()];
+    trDay.appendChild(td);
+  });
+  table.appendChild(trDay);
+
+  const trT1 = document.createElement('tr');
+  const thT1 = document.createElement('th');
+  thT1.textContent = '1º Turno';
+  trT1.appendChild(thT1);
+  const trT2 = document.createElement('tr');
+  const thT2 = document.createElement('th');
+  thT2.textContent = '2º Turno';
+  trT2.appendChild(thT2);
+
+  // assign tabIndex in the order: day1 t1, day1 t2, day2 t1, day2 t2, ...
+  let tabIndex = startOffsetIndex * 100 + 1;
+  dates.forEach((d, idx) => {
+    const td1 = document.createElement('td');
+    const input1 = document.createElement('input');
+    input1.type = 'number'; input1.min = '0.5'; input1.max = '5'; input1.step = '0.5';
+    input1.dataset.dayIndex = startOffsetIndex + idx; input1.className = 't1';
+    input1.tabIndex = tabIndex++;
+    td1.appendChild(input1); trT1.appendChild(td1);
+
+    const td2 = document.createElement('td');
+    const input2 = document.createElement('input');
+    input2.type = 'number'; input2.min = '0.5'; input2.max = '5'; input2.step = '0.5';
+    input2.dataset.dayIndex = startOffsetIndex + idx; input2.className = 't2';
+    input2.tabIndex = tabIndex++;
+    td2.appendChild(input2); trT2.appendChild(td2);
+  });
+  table.appendChild(trT1);
+  table.appendChild(trT2);
+
+  const trTotal = document.createElement('tr');
+  const thTotal = document.createElement('th');
+  thTotal.textContent = 'Total';
+  trTotal.appendChild(thTotal);
+  dates.forEach((d, idx) => {
+    const td = document.createElement('td');
+    const span = document.createElement('span');
+    span.className = 'total'; span.id = `total-${startOffsetIndex + idx}`; span.textContent = '0.0';
+    td.appendChild(span); trTotal.appendChild(td);
+  });
+  table.appendChild(trTotal);
+
+  const trAvail = document.createElement('tr');
+  const thAvail = document.createElement('th');
+  thAvail.textContent = 'Disp.';
+  trAvail.appendChild(thAvail);
+  dates.forEach((d, idx) => {
+    const td = document.createElement('td');
+    const span = document.createElement('span');
+    span.id = `avail-${startOffsetIndex + idx}`; span.textContent = '8.0';
+    td.appendChild(span); trAvail.appendChild(td);
+  });
+  table.appendChild(trAvail);
+
+  container.appendChild(table);
+}
+
+const datesCurrent = makeDates(-6);
+const datesNext = makeDates(1);
+createTable(datesCurrent, 'week-current', 0);
+createTable(datesNext, 'week-next', 7);
+
+// Fixed rolling-week logic: for each day, compute min allowed by all 7-day windows that include that day
+function recalc() {
+  const totals = new Array(14).fill(0);
+  // sum inputs into totals
+  document.querySelectorAll('input.t1').forEach(inp => {
+    const idx = parseInt(inp.dataset.dayIndex, 10);
+    totals[idx] += parseFloat(inp.value) || 0;
+  });
+  document.querySelectorAll('input.t2').forEach(inp => {
+    const idx = parseInt(inp.dataset.dayIndex, 10);
+    totals[idx] += parseFloat(inp.value) || 0;
+  });
+
+  // cap per-day at 8 when calculating windows (but for allowed addition we consider current totals capped)
+  const cappedTotals = totals.map(v => v > 8 ? 8 : v);
+
+  for (let i = 0; i < 14; i++) {
+    const dayTotal = cappedTotals[i];
+    // find all 7-day windows (start s from 0..7) that include day i: s <= i <= s+6
+    const allowedByWindows = [];
+    for (let s = 0; s <= 7; s++) {
+      const e = s + 6;
+      if (i >= s && i <= e) {
+        // sum of window s..e
+        let sumW = 0;
+        for (let k = s; k <= e; k++) sumW += cappedTotals[k];
+        // allowed extra on day i per this window = 40 - sumW
+        allowedByWindows.push(40 - sumW);
+      }
+    }
+    // If no windows include i (shouldn't happen), set weekAllowed to 8
+    let weekAllowed = 8;
+    if (allowedByWindows.length > 0) {
+      // The most restrictive is the minimum of allowedByWindows
+      weekAllowed = Math.min(...allowedByWindows);
+    }
+    // final available = min(8 - dayTotal, weekAllowed)
+    let avail = Math.min(8 - dayTotal, weekAllowed);
+    if (avail < 0) avail = 0;
+    // update UI
+    const totalEl = document.getElementById(`total-${i}`);
+    const availEl = document.getElementById(`avail-${i}`);
+    if (totalEl) totalEl.textContent = dayTotal.toFixed(1);
+    if (availEl) {
+      availEl.textContent = avail.toFixed(1);
+      totalEl.classList.remove('red','green');
+      if (avail <= 0) totalEl.classList.add('red'); else totalEl.classList.add('green');
+    }
+  }
+}
+
+// attach listeners
+document.addEventListener('input', (e) => {
+  if (e.target && (e.target.matches('input.t1') || e.target.matches('input.t2'))) {
+    recalc();
+  }
+});
+
+recalc();
+</script>
+</body>
+</html>
