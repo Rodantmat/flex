@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Amazon Flex - Horas</title>
+<style>
+  :root{--accent:#1a3d7c;--bg:#f8f9fa;--muted:#666;}
+  body{font-family:system-ui, -apple-system, "Segoe UI", Roboto, Arial; margin:14px; background:var(--bg); color:#111;}
+  h1{ text-align:center; color:var(--accent); margin:6px 0 10px; font-size:18px;}
+  h2{ text-align:center; color:var(--accent); margin:18px 0 6px; font-size:15px;}
+  .instructions{max-width:820px;margin:0 auto 8px;color:var(--muted);font-size:13px;line-height:1.35;text-align:center;}
+  .center{display:flex;justify-content:center;}
+  table{border-collapse:collapse;margin:8px auto;font-size:13px;}
+  th, td{padding:4px 6px;text-align:center;}
+  th{color:var(--accent);font-weight:600;}
+  input[type=number]{width:44px;padding:4px;border:1px solid #cfcfcf;border-radius:4px;text-align:center;font-size:13px;}
+  .total{font-weight:700;padding:2px 6px;border-radius:6px;display:inline-block;min-width:30px;}
+  .green{background:#dff3df;}
+  .red{background:#ffe2e2;}
+  .controls{display:flex;gap:8px;justify-content:center;margin-top:10px;}
+  button{background:var(--accent);color:white;border:none;padding:8px 12px;border-radius:6px;font-size:14px;cursor:pointer;}
+  button.secondary{background:#eee;color:#222;}
+  .small{font-size:12px;padding:6px 10px;border-radius:6px;}
+  .hidden{display:none;}
+  .note{font-size:12px;color:var(--muted);text-align:center;margin-top:6px;}
+  @media (max-width:720px){ input[type=number]{width:40px;} table{font-size:12px;} }
+</style>
+</head>
+<body>
+<h1 id="title">Amazon Flex — Horas</h1>
+
+<!-- Instructions area (will be localized) -->
+<div id="intro-instructions" class="instructions"></div>
+
+<!-- Screen 1: Completed shifts (6 days: today-6 .. yesterday) -->
+<div id="screen-completed">
+  <h2 id="completed-title"></h2>
+  <div id="completed-instructions" class="instructions"></div>
+  <div class="center">
+    <div id="completed-table-container"></div>
+  </div>
+  <div class="controls">
+    <button id="continue-btn">Continue</button>
+  </div>
+  <div class="note" id="completed-note"></div>
+</div>
+
+<!-- Screen 2: Scheduled shifts (8 days: today .. today+7) -->
+<div id="screen-scheduled" class="hidden">
+  <h2 id="scheduled-title"></h2>
+  <div id="scheduled-instructions" class="instructions"></div>
+  <div class="center">
+    <div id="scheduled-table-container"></div>
+  </div>
+  <div class="controls">
+    <button class="secondary small" id="back-btn">Back</button>
+    <button id="save-btn" class="small">Save (Local)</button>
+  </div>
+  <div class="note" id="scheduled-note"></div>
+</div>
+
+<script>
+// ----------------- Localization -----------------
+const LOCALES = {
+  en: {
+    title: "Amazon Flex — Hours",
+    completedTitle: "Completed Shifts",
+    scheduledTitle: "Scheduled Shifts",
+    completedInstructions: `Add your shifts worked in the last 6 days. You can find them under the "Earnings" tab. If you worked more than two shifts in a day, add them together and put the total into the 1st or 2nd shift.`,
+    scheduledInstructions: `Now add scheduled shifts for today and the next 7 days. You can find them under "Calendar" or "Schedule". If you have more than two shifts in a day, sum them and add the total to 1st or 2nd shift. The "Avail." row shows how many hours you have available to reserve on each day.`,
+    columns: { date: "Date", day: "Day", t1: "1st Shift", t2: "2nd Shift", total: "Total", avail: "Avail." },
+    continue: "Continue",
+    back: "Back",
+    save: "Save (Local)",
+    noteCompleted: "Fields left empty are treated as 0.0 hours.",
+    noteScheduled: "Totals are capped at 8h/day. Avail. already factors in the rolling 40h/7-day rule."
+  },
+  es: {
+    title: "Amazon Flex — Horas",
+    completedTitle: "Turnos Completados",
+    scheduledTitle: "Turnos Programados",
+    completedInstructions: `Agregue sus turnos trabajados en los últimos 6 días. Puedes encontrarlos en la pestaña "Ganancias". Si trabajaste más de 2 turnos por día, súmalos y agréguelos al 1º o 2º turno.`,
+    scheduledInstructions: `Ahora agregue los turnos programados para hoy y los próximos 7 días. Puedes encontrarlos en "Calendario" o "Horario". Si tienes programado más de 2 turnos por día, súmalos y agréguelos al 1º o 2º turno. La línea "Disp." presenta la cantidad de horas que tienes disponible para reservar turnos en cada día.`,
+    columns: { date: "Fecha", day: "Día", t1: "1º Turno", t2: "2º Turno", total: "Total", avail: "Disp." },
+    continue: "Continuar",
+    back: "Volver",
+    save: "Guardar (Local)",
+    noteCompleted: "Los campos vacíos se consideran 0.0 horas.",
+    noteScheduled: "Los totales se limitan a 8h/día. 'Disp.' ya considera la regla móvil de 40h en 7 días."
+  }
+};
+
+// choose language from navigator
+const userLang = navigator.language && navigator.language.startsWith("es") ? "es" : "en";
+const L = LOCALES[userLang];
+
+// set basic labels
+document.getElementById('title').textContent = L.title;
+document.getElementById('completed-title').textContent = L.completedTitle;
+document.getElementById('scheduled-title').textContent = L.scheduledTitle;
+document.getElementById('completed-instructions').textContent = L.completedInstructions;
+document.getElementById('scheduled-instructions').textContent = L.scheduledInstructions;
+document.getElementById('continue-btn').textContent = L.continue;
+document.getElementById('back-btn').textContent = L.back;
+document.getElementById('save-btn').textContent = L.save;
+
+// ----------------- Date helpers -----------------
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTHS_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+const DAYS_EN = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const DAYS_ES = ["Dom","Lun","Mar","Mi","Jue","Vie","Sáb"];
+
+function shortMonthName(d) {
+  return userLang === 'es' ? MONTHS_ES[d.getMonth()] : MONTHS[d.getMonth()];
+}
+function shortDayName(d) {
+  return userLang === 'es' ? DAYS_ES[d.getDay()] : DAYS_EN[d.getDay()];
+}
+function makeLocalBaseDate(){ const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate()); }
+
+// ----------------- Index mapping -----------------
+// indices 0..5 => completed (today-6 .. yesterday)
+// indices 6..13 => scheduled (today .. today+7)
+
+function datesForCompleted(){ const base=makeLocalBaseDate(); const out=[]; for(let i=-6;i<=-1;i++){ const d=new Date(base); d.setDate(base.getDate()+i); out.push(d);} return out;}
+function datesForScheduled(){ const base=makeLocalBaseDate(); const out=[]; for(let i=0;i<=7;i++){ const d=new Date(base); d.setDate(base.getDate()+i); out.push(d);} return out;}
+
+// ----------------- Build UI tables -----------------
+function buildTable(dates, containerId, startIndex, includeAvail){
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  const table = document.createElement('table');
+  const trHead = document.createElement('tr');
+  const thEmpty = document.createElement('th'); thEmpty.textContent=''; trHead.appendChild(thEmpty);
+  dates.forEach((d, idx)=>{ const th=document.createElement('th'); th.textContent = shortMonthName(d) + ' ' + d.getDate(); trHead.appendChild(th); });
+  table.appendChild(trHead);
+  const trDay = document.createElement('tr'); const thDay=document.createElement('th'); thDay.textContent = L.columns.day; trDay.appendChild(thDay);
+  dates.forEach((d, idx)=>{ const td=document.createElement('td'); td.textContent = shortDayName(d); trDay.appendChild(td); });
+  table.appendChild(trDay);
+  const trT1 = document.createElement('tr'); const thT1=document.createElement('th'); thT1.textContent = L.columns.t1; trT1.appendChild(thT1);
+  const trT2 = document.createElement('tr'); const thT2=document.createElement('th'); thT2.textContent = L.columns.t2; trT2.appendChild(thT2);
+  let tabindex = 1;
+  for(let i=0;i<dates.length;i++){
+    const idx = startIndex + i;
+    const td1=document.createElement('td'); const inp1=document.createElement('input');
+    inp1.type='number'; inp1.min='0'; inp1.max='5'; inp1.step='0.5'; inp1.dataset.index=idx; inp1.className='t1'; inp1.tabIndex = tabindex++;
+    td1.appendChild(inp1); trT1.appendChild(td1);
+    const td2=document.createElement('td'); const inp2=document.createElement('input');
+    inp2.type='number'; inp2.min='0'; inp2.max='5'; inp2.step='0.5'; inp2.dataset.index=idx; inp2.className='t2'; inp2.tabIndex = tabindex++;
+    td2.appendChild(inp2); trT2.appendChild(td2);
+  }
+  table.appendChild(trT1); table.appendChild(trT2);
+  const trTotal = document.createElement('tr'); const thTotal=document.createElement('th'); thTotal.textContent = L.columns.total; trTotal.appendChild(thTotal);
+  for(let i=0;i<dates.length;i++){ const idx=startIndex+i; const td=document.createElement('td'); const sp=document.createElement('span'); sp.id='total-'+idx; sp.className='total'; sp.textContent='0.0'; td.appendChild(sp); trTotal.appendChild(td); }
+  table.appendChild(trTotal);
+  if(includeAvail){
+    const trAvail=document.createElement('tr'); const thAvail=document.createElement('th'); thAvail.textContent = L.columns.avail; trAvail.appendChild(thAvail);
+    for(let i=0;i<dates.length;i++){ const idx=startIndex+i; const td=document.createElement('td'); const sp=document.createElement('span'); sp.id='avail-'+idx; sp.textContent='8.0'; td.appendChild(sp); trAvail.appendChild(td); }
+    table.appendChild(trAvail);
+  }
+  container.appendChild(table);
+}
+
+const completedDates = datesForCompleted();
+const scheduledDates = datesForScheduled();
+buildTable(completedDates, 'completed-table-container', 0, false);
+buildTable(scheduledDates, 'scheduled-table-container', 6, true);
+
+// ----------------- Calculation logic -----------------
+function readTotals(){
+  const totals = new Array(14).fill(0);
+  document.querySelectorAll('input.t1, input.t2').forEach(inp=>{
+    const idx = parseInt(inp.dataset.index,10);
+    const val = parseFloat(inp.value) || 0;
+    totals[idx] += val;
+  });
+  return totals.map(v=> Math.min(v,8) );
+}
+
+function computeAndRender(){
+  const totals = readTotals();
+  for(let i=0;i<14;i++){
+    const el = document.getElementById('total-'+i);
+    if(el) el.textContent = (totals[i] || 0).toFixed(1);
+  }
+  for(let i=6;i<=13;i++){
+    let minAllowed = Infinity;
+    for(let s=0;s<=7;s++){
+      const e = s+6;
+      if(i>=s && i<=e){
+        let sumW = 0;
+        for(let k=s;k<=e;k++) sumW += (totals[k] || 0);
+        const allowedExtra = 40 - sumW;
+        minAllowed = Math.min(minAllowed, allowedExtra);
+      }
+    }
+    if(minAllowed===Infinity) minAllowed = 8;
+    const avail = Math.max(0, Math.min(8 - (totals[i]||0), minAllowed));
+    const availEl = document.getElementById('avail-'+i);
+    if(availEl) availEl.textContent = avail.toFixed(1);
+    const totalEl = document.getElementById('total-'+i);
+    if(totalEl){
+      totalEl.classList.remove('green','red');
+      if(avail<=0) totalEl.classList.add('red'); else totalEl.classList.add('green');
+    }
+  }
+}
+
+document.addEventListener('input', function(e){
+  if(e.target && (e.target.classList.contains('t1') || e.target.classList.contains('t2'))){
+    const val = e.target.value;
+    if(val==='') { computeAndRender(); return; }
+    const num = parseFloat(val);
+    if(isNaN(num)){ e.target.value=''; computeAndRender(); return; }
+    const clamped = Math.max(0, Math.min(5, Math.round(num*2)/2));
+    if(clamped !== num) e.target.value = clamped;
+    computeAndRender();
+  }
+});
+
+computeAndRender();
+
+// ----------------- Navigation -----------------
+const screenCompleted = document.getElementById('screen-completed');
+const screenScheduled = document.getElementById('screen-scheduled');
+document.getElementById('continue-btn').addEventListener('click', ()=>{ screenCompleted.classList.add('hidden'); screenScheduled.classList.remove('hidden'); window.scrollTo(0,0); });
+document.getElementById('back-btn').addEventListener('click', ()=>{ screenScheduled.classList.add('hidden'); screenCompleted.classList.remove('hidden'); window.scrollTo(0,0); });
+
+// ----------------- Save / LocalStorage -----------------
+const SAVE_KEY = 'aflex_hours_v1';
+document.getElementById('save-btn').addEventListener('click', ()=>{
+  const data = {};
+  document.querySelectorAll('input.t1, input.t2').forEach(inp=>{ data['i'+inp.dataset.index + (inp.classList.contains('t1')?'_t1':'_t2')] = inp.value || ''; });
+  localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+  alert(userLang==='es' ? 'Guardado localmente' : 'Saved locally');
+});
+(function loadSaved(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(!raw) return;
+    const data = JSON.parse(raw);
+    document.querySelectorAll('input.t1, input.t2').forEach(inp=>{
+      const key = 'i'+inp.dataset.index + (inp.classList.contains('t1')?'_t1':'_t2');
+      if(data[key] !== undefined) inp.value = data[key];
+    });
+    computeAndRender();
+  }catch(e){ console.warn(e); }
+})();
+
+</script>
+</body>
+</html>
