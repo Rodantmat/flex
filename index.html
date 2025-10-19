@@ -9,7 +9,7 @@
   body{font-family:system-ui, -apple-system, "Segoe UI", Roboto, Arial; margin:14px; background:var(--bg); color:#111;}
   h1{ text-align:center; color:var(--accent); margin:6px 0 10px; font-size:18px;}
   h2{ text-align:center; color:var(--accent); margin:18px 0 6px; font-size:15px;}
-  .instructions{max-width:820px;margin:0 auto 8px;color:var(--muted);font-size:13px;line-height:1.35;text-align:center;}
+  .instructions{max-width:820px;margin:0 auto 8px;color:var(--muted);font-size:13px;line-height:1.35;text-align:center;white-space:pre-line;}
   .center{display:flex;justify-content:center;}
   table{border-collapse:collapse;margin:8px auto;font-size:13px;}
   th, td{padding:4px 6px;text-align:center;}
@@ -36,10 +36,10 @@
 <!-- Screen 1: Completed shifts (6 days: today-6 .. yesterday) -->
 <div id="screen-completed">
   <h2 id="completed-title"></h2>
-  <div id="completed-instructions" class="instructions"></div>
   <div class="center">
     <div id="completed-table-container"></div>
   </div>
+  <div id="completed-instructions" class="instructions"></div>
   <div class="controls">
     <button id="continue-btn">Continue</button>
   </div>
@@ -49,10 +49,10 @@
 <!-- Screen 2: Scheduled shifts (8 days: today .. today+7) -->
 <div id="screen-scheduled" class="hidden">
   <h2 id="scheduled-title"></h2>
-  <div id="scheduled-instructions" class="instructions"></div>
   <div class="center">
     <div id="scheduled-table-container"></div>
   </div>
+  <div id="scheduled-instructions" class="instructions"></div>
   <div class="controls">
     <button class="secondary small" id="back-btn">Back</button>
     <button id="save-btn" class="small">Save (Local)</button>
@@ -67,8 +67,8 @@ const LOCALES = {
     title: "Amazon Flex — Hours",
     completedTitle: "Completed Shifts",
     scheduledTitle: "Scheduled Shifts",
-    completedInstructions: `Add your shifts worked in the last 6 days. You can find them under the "Earnings" tab. If you worked more than two shifts in a day, add them together and put the total into the 1st or 2nd shift.`,
-    scheduledInstructions: `Now add scheduled shifts for today and the next 7 days. You can find them under "Calendar" or "Schedule". If you have more than two shifts in a day, sum them and add the total to 1st or 2nd shift. The "Avail." row shows how many hours you have available to reserve on each day.`,
+    completedInstructions: `Add your shifts worked in the last 6 days.\nYou can find them under the "Earnings" tab.\nIf you worked more than two shifts in a day, add them together and put the total into the 1st or 2nd shift.`,
+    scheduledInstructions: `Now add scheduled shifts for today and the next 7 days.\nYou can find them under "Calendar" or "Schedule".\nIf you have more than two shifts in a day, sum them and add the total to 1st or 2nd shift.\nThe "Avail." row shows how many hours you have available to reserve on each day.`,
     columns: { date: "Date", day: "Day", t1: "1st Shift", t2: "2nd Shift", total: "Total", avail: "Avail." },
     continue: "Continue",
     back: "Back",
@@ -80,8 +80,8 @@ const LOCALES = {
     title: "Amazon Flex — Horas",
     completedTitle: "Turnos Completados",
     scheduledTitle: "Turnos Programados",
-    completedInstructions: `Agregue sus turnos trabajados en los últimos 6 días. Puedes encontrarlos en la pestaña "Ganancias". Si trabajaste más de 2 turnos por día, súmalos y agréguelos al 1º o 2º turno.`,
-    scheduledInstructions: `Ahora agregue los turnos programados para hoy y los próximos 7 días. Puedes encontrarlos en "Calendario" o "Horario". Si tienes programado más de 2 turnos por día, súmalos y agréguelos al 1º o 2º turno. La línea "Disp." presenta la cantidad de horas que tienes disponible para reservar turnos en cada día.`,
+    completedInstructions: `Agregue sus turnos trabajados en los últimos 6 días.\nPuedes encontrarlos en la pestaña "Ganancias".\nSi trabajaste más de 2 turnos por día, súmalos y agréguelos al 1º o 2º turno.`,
+    scheduledInstructions: `Ahora agregue los turnos programados para hoy y los próximos 7 días.\nPuedes encontrarlos en "Calendario" o "Horario".\nSi tienes programado más de 2 turnos por día, súmalos y agréguelos al 1º o 2º turno. La línea "Disp." presenta la cantidad de horas que tienes disponible para reservar turnos en cada día.`,
     columns: { date: "Fecha", day: "Día", t1: "1º Turno", t2: "2º Turno", total: "Total", avail: "Disp." },
     continue: "Continuar",
     back: "Volver",
