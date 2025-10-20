@@ -8,7 +8,7 @@
   :root{--accent:#1a3d7c;--bg:#f8f9fa;--muted:#666;}
   html,body{
     width:100%;
-    height:auto; /* allow body to grow with content */
+    height:auto;
     margin:0;
     padding:0;
     background:var(--bg);
@@ -17,15 +17,16 @@
     overflow-x:auto;
     overflow-y:auto;
     -webkit-overflow-scrolling:touch;
-    touch-action:manipulation; /* allow pinch, pan */
+    touch-action:pan-x pan-y pinch-zoom;
   }
 
-  body {
-    display:block; /* prevent flex center scroll lock */
+  /* ✅ Remove flex that was blocking panning */
+  body{
+    display:block;
     text-align:center;
   }
 
-  #page-wrapper {
+  #page-wrapper{
     width:100%;
     max-width:950px;
     margin:0 auto;
@@ -57,13 +58,12 @@
   }
 
   .center{
-    display:flex;
-    justify-content:center;
+    display:block;
     width:100%;
     overflow-x:auto !important;
     overflow-y:visible;
     -webkit-overflow-scrolling:touch;
-    touch-action:pan-x pan-y pinch-zoom; /* ✅ allow drag + zoom */
+    touch-action:pan-x pan-y pinch-zoom;
   }
 
   table{
@@ -76,6 +76,8 @@
 
   th,td{padding:4px 6px;text-align:center;}
   th{color:var(--accent);font-weight:600;}
+
+  /* ✅ Limit to numeric + "." + up to 5 max */
   input[type=number]{
     width:44px;
     padding:4px;
@@ -83,6 +85,12 @@
     border-radius:4px;
     text-align:center;
     font-size:13px;
+    -moz-appearance:textfield;
+  }
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button{
+    -webkit-appearance:none;
+    margin:0;
   }
 
   .total{
@@ -292,6 +300,32 @@ loadData();
 const scC=document.getElementById("screen-completed"),scS=document.getElementById("screen-scheduled");
 document.getElementById("continue-btn").onclick=()=>{scC.classList.add("hidden");scS.classList.remove("hidden");window.scrollTo(0,0);}
 document.getElementById("back-btn").onclick=()=>{scS.classList.add("hidden");scC.classList.remove("hidden");window.scrollTo(0,0);}
+
+
+
+
+
 </script>
+
+
+<script>
+  // Enforce numeric only & max 5 per field
+  document.addEventListener('input', e => {
+    if (e.target.matches('input[type="number"]')) {
+      let v = parseFloat(e.target.value) || 0;
+      if (v > 5) e.target.value = 5;
+      if (v < 0) e.target.value = 0;
+    }
+  });
+
+  // Fix for iPhone Safari preventing vertical panning
+  document.addEventListener('touchmove', e => {
+    if (!e.target.closest('input, textarea, select')) {
+      e.stopPropagation();
+    }
+  }, { passive: true });
+</script>
+
+
 </body>
 </html>
